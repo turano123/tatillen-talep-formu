@@ -1,28 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import './RoomDetailPage.css';
+import api from '../api/axiosInstance';
 
 function RoomDetailPage() {
-  const { index } = useParams();
-  const location = useLocation();
+  const { id } = useParams(); // URL'den MongoDB id'sini alıyoruz
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (location.state?.room) {
-      setRoom(location.state.room);
-    } else {
-      const storedRooms = localStorage.getItem('rooms');
-      if (storedRooms) {
-        const rooms = JSON.parse(storedRooms);
-        if (rooms && rooms[index]) {
-          setRoom(rooms[index]);
-        }
+    async function fetchRoom() {
+      try {
+        const res = await api.get(`/rooms/${id}`); // MongoDB'den odayı çek
+        setRoom(res.data);
+      } catch (err) {
+        console.error('Oda verisi alınamadı:', err);
       }
     }
-  }, [index, location.state]);
+    fetchRoom();
+  }, [id]);
 
   const [form, setForm] = useState({
     checkIn: '',
@@ -45,7 +43,7 @@ function RoomDetailPage() {
   };
 
   const generateRequestId = () => {
-    return Math.floor(Math.random() * 90000000 + 10000000); // 8 haneli ID
+    return Math.floor(Math.random() * 90000000 + 10000000);
   };
 
   const sendWhatsApp = () => {
@@ -56,14 +54,14 @@ function RoomDetailPage() {
     message += `🔕️ Giriş Tarihi: ${form.checkIn}\n`;
     message += `🔕️ Çıkış Tarihi: ${form.checkOut}\n`;
     message += `👨‍👩‍👧‍👦 Yetişkin Sayısı: ${form.adults}\n`;
-    message += `🧒 Çocuk Sayısı: ${form.children}\n`;
+    message += `🦲 Çocuk Sayısı: ${form.children}\n`;
 
     form.childAges.forEach((age, i) => {
       message += `👧 Çocuk${i + 1}: ${age} yaş\n`;
     });
 
     message += `🍳 Kahvaltı: ${form.breakfast}\n`;
-    message += `🆑 Talep No: ${requestId}`;
+    message += `🦑 Talep No: ${requestId}`;
 
     const encoded = encodeURIComponent(message);
     const phone = '905431665454';
@@ -73,9 +71,7 @@ function RoomDetailPage() {
   const getImageSrc = (img) => {
     try {
       if (!img) return '';
-      if (typeof img === 'string') return img;
-      if (img instanceof File || img instanceof Blob) return URL.createObjectURL(img);
-      if (img.previewUrl) return img.previewUrl;
+      return typeof img === 'string' ? img : '';
     } catch (e) {
       console.error('Görsel hatası:', e);
       return '';
@@ -148,6 +144,7 @@ function RoomDetailPage() {
         <div className="modal-overlay">
           <div className="modal">
             <h3>Rezervasyon Talep Formu</h3>
+
             <label>Giriş Tarihi:</label>
             <input type="date" name="checkIn" value={form.checkIn} onChange={handleChange} required />
 

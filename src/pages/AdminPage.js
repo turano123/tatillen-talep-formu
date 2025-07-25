@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './AdminPage.css';
+import api from '../api/axiosInstance';
 
 function AdminPage() {
-  const [rooms, setRooms] = useState(() => {
-    const stored = localStorage.getItem('rooms');
-    return stored ? JSON.parse(stored) : [];
-  });
-
+  const [rooms, setRooms] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -14,8 +11,20 @@ function AdminPage() {
     weekdayPrice: '',
     weekendPrice: ''
   });
-
   const [editIndex, setEditIndex] = useState(null);
+
+  // 🔁 Sayfa açıldığında odaları MongoDB'den çek
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await api.get('/rooms');
+        setRooms(res.data);
+      } catch (err) {
+        console.error('Oda verisi alınamadı:', err);
+      }
+    };
+    fetchRooms();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,32 +44,40 @@ function AdminPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const base64Images = await Promise.all(
+      formData.images.map(async (img) => {
+        if (img.previewUrl.startsWith('blob:')) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result); // base64 string
+            reader.onerror = reject;
+            reader.readAsDataURL(img.file);
+          });
+        } else {
+          return img.previewUrl; // mevcut görsel
+        }
+      })
+    );
 
     const newRoom = {
       name: formData.name,
       description: formData.description,
-      images: formData.images,
+      images: base64Images, // base64 string listesi
       weekdayPrice: formData.weekdayPrice,
       weekendPrice: formData.weekendPrice
     };
 
-    let updatedRooms;
-
-    if (editIndex !== null) {
-      const updated = [...rooms];
-      updated[editIndex] = newRoom;
-      updatedRooms = updated;
-      setRooms(updated);
-      setEditIndex(null);
-    } else {
-      updatedRooms = [...rooms, newRoom];
-      setRooms(updatedRooms);
+    try {
+      const res = await api.post('/rooms', newRoom);
+      setRooms([...rooms, res.data]);
+      alert('Oda başarıyla kaydedildi!');
+    } catch (err) {
+      console.error('Kayıt hatası:', err);
+      alert('Bir hata oluştu.');
     }
-
-    // 🧠 localStorage'a kaydet
-    localStorage.setItem('rooms', JSON.stringify(updatedRooms));
 
     setFormData({
       name: '',
@@ -69,6 +86,7 @@ function AdminPage() {
       weekdayPrice: '',
       weekendPrice: ''
     });
+    setEditIndex(null);
   };
 
   const handleEdit = (index) => {
@@ -76,7 +94,10 @@ function AdminPage() {
     setFormData({
       name: selected.name,
       description: selected.description,
-      images: selected.images,
+      images: selected.images.map(img => ({
+        file: null,
+        previewUrl: img // string olarak saklandı
+      })),
       weekdayPrice: selected.weekdayPrice,
       weekendPrice: selected.weekendPrice
     });
@@ -120,7 +141,7 @@ function AdminPage() {
               <td>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {room.images.map((img, i) => (
-                    <img key={i} src={img.previewUrl} alt="oda" width="60" />
+                    <img key={i} src={img} alt="oda" width="60" />
                   ))}
                 </div>
               </td>
