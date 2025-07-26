@@ -26,15 +26,19 @@ function UserHomePage() {
         {rooms.map((room) => (
           <div className="room-card" key={room._id}>
             <img
-              src={room.images[0] || ''}
+              src={
+                room.images && room.images.length > 0
+                  ? room.images[0]
+                  : 'https://via.placeholder.com/300x200?text=Görsel+Yok'
+              }
               alt="oda görseli"
               className="room-image"
             />
             <div className="room-info">
               <h3>{room.name}</h3>
-              <p>Hafta İçi: {room.weekdayPrice}₺</p>
+              <p>Hafta İçi: {room.weekPrice}₺</p>
               <p>Hafta Sonu: {room.weekendPrice}₺</p>
-              <Link to={`/oda/${room._id}`} className="detail-btn">
+              <Link to={`/oda/${room._id}`} state={{ room }} className="detail-btn">
                 Detaylı İncele
               </Link>
             </div>
